@@ -9,17 +9,27 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
+import org.apache.commons.io.FilenameUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.springboot.Model.Product;
+import com.springboot.Repository.ProductRepository;
 
 @Service
 public class FileServiceImp implements FileService{
 
 	@Value("${file.upload.path}")
 	private String uploadPath;
+	
+	@Autowired
+	private ProductRepository productRepository;
 	
 	@Override
 	public Boolean uploadFile(MultipartFile file) throws IOException {
@@ -68,5 +78,40 @@ public class FileServiceImp implements FileService{
 	        }
 	    }
 	    return imageFiles;
+	}
+
+	@Override
+	public Boolean saveProduct(Product product) {
+		// TODO Auto-generated method stub
+		Product save = productRepository.save(product);
+		if(!ObjectUtils.isEmpty(save)) {
+			return true;
+		}
+		return false;
+	}
+
+	
+	@Override
+	public String uploadFileWithData(MultipartFile file) throws IOException {
+		// TODO Auto-generated method stub
+		String fileName = file.getOriginalFilename();
+		File saveFile = new File(uploadPath);
+		
+		//Create a unique name of file name
+		String randomString = UUID.randomUUID().toString();
+		String removeExtension = FilenameUtils.removeExtension(fileName);
+		fileName = removeExtension+"_"+randomString+"."+FilenameUtils.getExtension(fileName);
+		System.out.println("Filename: "+ fileName);
+		
+		if(!saveFile.exists()) {
+			saveFile.mkdir();
+		}
+		String storedPath = uploadPath.concat(fileName);
+		System.out.println("StoredPath: "+ storedPath);
+		long upload = Files.copy(file.getInputStream(), Paths.get(storedPath));
+		if(upload != 0) {
+			return storedPath;
+		}
+		return null;
 	}
 }

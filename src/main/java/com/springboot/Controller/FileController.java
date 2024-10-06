@@ -24,7 +24,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.springboot.Model.Product;
 import com.springboot.Service.FileService;
+
+import ch.qos.logback.core.util.StringUtil;
+import io.micrometer.common.util.StringUtils;
+
 
 @RestController
 @RequestMapping("/api")
@@ -52,7 +58,6 @@ public class FileController {
 		try {
 			byte[] downloadFile = fileService.downloadFile(file);
 			String contentType = getContentType(file);
-			
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.parseMediaType(contentType));
 			//headers.setContentLength(file.length());
@@ -72,7 +77,6 @@ public class FileController {
             if (images.isEmpty()) {
                 return new ResponseEntity<>(HttpStatus.NO_CONTENT);
             }
-
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ZipOutputStream zos = new ZipOutputStream(baos);
 
@@ -83,20 +87,43 @@ public class FileController {
                 zos.write(image);
                 zos.closeEntry();
             }
-
             zos.finish();
             zos.close();
-
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=images.zip");
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-
             return ResponseEntity.ok().headers(headers).body(baos.toByteArray());
-
         } catch (IOException e) {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    
+    @PostMapping("/UploadData")
+	public ResponseEntity<?> uploadFileWithData(@RequestParam String product, @RequestParam MultipartFile file){
+    	System.out.println("Product: "+ product);
+    	System.out.println("File: "+ file);
+		try {
+			 String filename = fileService.uploadFileWithData(file);
+			System.out.println("check");
+			if(filename != null) {
+				
+				ObjectMapper objectMapper = new ObjectMapper();
+				Product readValue = objectMapper.readValue(product, Product.class);
+				//String filename = file.getOriginalFilename();
+				readValue.setImageName(filename);
+				Boolean saveProduct = fileService.saveProduct(readValue);
+				if(saveProduct) {
+					return new ResponseEntity<>("Data and File Upload Successfully...", HttpStatus.CREATED);
+				}else {
+					return new ResponseEntity<>("Data and File Upload Failed...", HttpStatus.CREATED);
+				}
+			}else {
+				return new ResponseEntity<>("Data and File Upload Failed...",HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+		}catch(Exception e) {
+			return new ResponseEntity<>(e.getMessage(),HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 	
 	public String getContentType(String filename) {
 		String extension = FilenameUtils.getExtension(filename);
